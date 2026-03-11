@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Alpe Selle - Nuvola di punti</title>
+  <script src="https://unpkg.com/potree-core/dist/index.js"></script>
+  <style>
+    html, body, #viewer {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #msg {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div id="msg">Caricamento nuvola di punti…</div>
+  <div id="viewer"></div>
+
+  <script type="module">
+    import * as THREE from "https://unpkg.com/three@0.152.2/build/three.module.js";
+    import { loadPointCloud } from "https://unpkg.com/potree-core/dist/index.js";
+
+    const container = document.getElementById("viewer");
+    const msg = document.getElementById("msg");
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xeeeeee);
+
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100000
+    );
+    camera.position.set(10, 10, 10);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(10, 10, 20);
+    scene.add(light);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambient);
+
+    try {
+      const pointcloud = await loadPointCloud("ept.json");
+      scene.add(pointcloud);
+
+      if (pointcloud.boundingBox) {
+        const box = pointcloud.boundingBox;
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const maxDim = Math.max(size.x, size.y, size.z);
+
+        camera.position.set(center.x + maxDim, center.y + maxDim, center.z + maxDim);
+        camera.lookAt(center);
+      }
+
+      msg.style.display = "none";
+    } catch (e) {
+      console.error(e);
+      msg.textContent = "Errore nel caricamento della nuvola di punti.";
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
